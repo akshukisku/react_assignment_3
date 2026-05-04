@@ -1,16 +1,25 @@
-import React from 'react'
+import React, { useState } from 'react'
 import Cookies from "js-cookie";
 import { Box, Typography } from '@mui/material';
 const UserDashboard = () => {
 
    const userCookie = Cookies.get("user");
 
+   const [openDialog,setopenDialog]=useState<boolean>(false);
+
   // Convert string to object
   const user = userCookie
     ? JSON.parse(userCookie)
     : null;
 
-  console.log("User Details:", user);
+  // console.log("User Details:", user);
+
+  // Realtime UI Date an d time
+  const currentDate = new Date().toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
 
   return (
      <Box
@@ -39,7 +48,7 @@ const UserDashboard = () => {
             fontSize: "14px",
           }}
         >
-          September 4, 2023
+          {currentDate}
         </Typography>
 
         <Typography

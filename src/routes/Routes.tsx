@@ -5,7 +5,10 @@ import HomeWrapper from "../layout/HomeWrapper";
 import AdminWrapper from "../layout/admin/AdminWrapper";
 import Dashboard from "../layout/admin/Dashboard";
 import UserWrapper from "../layout/user/UserWrapper";
-import UserDashboard from "../layout/user/UserDashboard";
+import UserDashboard from "../pages/user/UserDashboard";
+import UserProtected from "../components/UserProtected";
+import AdminProtected from "../components/AdminProtected";
+import User from "../pages/admin/User";
 
 const Routes = createBrowserRouter([
   {
@@ -20,25 +23,42 @@ const Routes = createBrowserRouter([
         path: "/register",
         element: <Register />,
       },
-    ]
+    ],
   },
   {
-    path:"/admin",
-    element:<AdminWrapper/>,
-    children:[
+    path: "/admin",
+    element: <AdminProtected />,
+    children: [
       {
-        path:"dashboard",
-        element:<Dashboard/>
-      }
-    ]
-  },{
-    path:"/user",
-    element:<UserWrapper/>,
-    children:[{
-      path:"dashboard",
-      element:<UserDashboard/>
-    }]
-  }
+        element: <AdminWrapper />,
+        children: [
+          {
+            path: "dashboard",
+            element: <Dashboard />,
+          },
+          {
+            path:"user",
+            element:<User/>
+          }
+        ],
+      },
+    ],
+  },
+  {
+    path: "/user",
+    element: <UserProtected />,
+    children: [
+      {
+        element: <UserWrapper />,
+        children: [
+          {
+            path: "dashboard",
+            element: <UserDashboard />,
+          },
+        ],
+      },
+    ],
+  },
 ]);
 
 export default Routes;

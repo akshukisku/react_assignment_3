@@ -20,7 +20,8 @@ const Register = () => {
   const [preview, setPreview] = useState<string | null>(null);
   const [isLoading,setLoading]=useState(false);
 
-  const navigate = useNavigate()
+  const navigate = useNavigate();
+
 
   const {
     register,
@@ -30,7 +31,6 @@ const Register = () => {
     setValue,
   } = useForm<singupForm>({
     resolver: yupResolver(signupSchema),
-
     defaultValues: {
       fullname: "",
       email: "",
@@ -86,6 +86,18 @@ const Register = () => {
           images: imageUrl
         }
       });
+
+      const userAccount = await tablesDB.createRow({
+        databaseId:import.meta.env.VITE_APPWRITE_DATABASEID,
+        tableId:"student",
+        rowId:userAuth.$id,
+        data:{
+          name:data.fullname,
+          email:data.email,
+        }
+      })
+
+      console.log("student create Successfully",userAccount)
       console.log('user rgister res', user);
       if(user){
         toast.success("User Register Successfully!!");
