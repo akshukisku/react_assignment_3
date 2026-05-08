@@ -37,6 +37,8 @@ const initialState: FormState = {
 };
 
 const FormOptimizer = () => {
+
+  console.log("A")
   const [formData, setFormData] = useState<FormState>(initialState);
 
   const handleChange = useCallback(

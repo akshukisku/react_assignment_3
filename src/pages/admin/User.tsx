@@ -22,7 +22,7 @@ import { ID, tablesDB, account, bucket } from "../../lib/appwrite.conifg";
 import { useForm } from "react-hook-form";
 import type { userDetails } from "../../typescript/interface/userdetails.interface";
 import { yupResolver } from "@hookform/resolvers/yup";
-import { userDetailsSchema } from "../../service/validation/userdetails.validation";
+import { userCreateSchema, userEditSchema } from "../../service/validation/userdetails.validation";
 import { userDetailsForm } from "../../service/json/userdetails.input";
 import DynamicInput from "../../components/DynamicInput";
 import { toast } from "sonner";
@@ -58,7 +58,10 @@ const User = () => {
     reset,
     formState: { errors },
   } = useForm<userDetails>({
-    resolver: yupResolver(userDetailsSchema) as never,
+    // ✅ Swap schema based on editId — no yup context needed
+    resolver: yupResolver(
+      editId ? userEditSchema : userCreateSchema
+    ) as never,
   });
 
   // ================= FETCH USERS =================
@@ -70,7 +73,6 @@ const User = () => {
         databaseId: import.meta.env.VITE_APPWRITE_DATABASEID,
         tableId: "student",
       });
-      // ✅ Double-cast through unknown — DefaultRow[] has no overlap with StudentRow[]
       setuserList(response.rows as unknown as StudentRow[]);
     } catch (error: unknown) {
       setisError(
@@ -81,7 +83,6 @@ const User = () => {
     }
   }, []);
 
-  // ✅ Extract into a named sync callback — linter accepts this pattern
   useEffect(() => {
     const load = () => {
       void fetchUser();
@@ -113,6 +114,7 @@ const User = () => {
     setisAddLoading(true);
     try {
       if (editId) {
+        // UPDATE — never touch password or auth account
         await tablesDB.updateRow({
           databaseId: import.meta.env.VITE_APPWRITE_DATABASEID,
           tableId: "student",
@@ -137,6 +139,7 @@ const User = () => {
 
         toast.success("User Updated Successfully");
       } else {
+        // CREATE
         const userAuth = await account.create({
           userId: ID.unique(),
           email: data.email,
@@ -193,7 +196,6 @@ const User = () => {
     seteditId(user.$id);
     setopenDialog(true);
     try {
-      // ✅ Double-cast through unknown — Row has no overlap with UsersRow
       const usersRow = (await tablesDB.getRow({
         databaseId: import.meta.env.VITE_APPWRITE_DATABASEID,
         tableId: "users",
@@ -281,6 +283,8 @@ const User = () => {
         onClose={handleCloseDialog}
         fullWidth
         maxWidth="sm"
+        // ✅ Forces useForm to remount with the correct schema when switching add/edit
+        key={editId ?? "create"}
       >
         <Box component="form" onSubmit={handleSubmit(onSubmit as never)}>
           <DialogContent>
@@ -288,6 +292,7 @@ const User = () => {
               {editId ? "Update User Details" : "Create User"}
             </DialogContentText>
 
+            {/* Profile Details: fullname + email (no password here anymore) */}
             <Typography variant="subtitle1" sx={{ mb: 1 }}>
               Profile Details
             </Typography>
@@ -303,8 +308,22 @@ const User = () => {
               />
             ))}
 
+            {/* Password + Image — only shown when creating */}
             {!editId && (
               <>
+                <Typography variant="subtitle1" sx={{ mt: 2, mb: 1 }}>
+                  Password
+                </Typography>
+                {/* ✅ Single password field, type="password" */}
+                <DynamicInput
+                  name={"password" as keyof userDetails}
+                  label="Enter Password"
+                  type="password"
+                  required={true}
+                  register={register}
+                  errors={errors}
+                />
+
                 <Typography variant="subtitle1" sx={{ mt: 2, mb: 1 }}>
                   Profile Image (optional)
                 </Typography>
@@ -319,6 +338,7 @@ const User = () => {
               </>
             )}
 
+            {/* Student Details: name, phone, course, address */}
             <Typography variant="subtitle1" sx={{ mt: 2, mb: 1 }}>
               User Details
             </Typography>

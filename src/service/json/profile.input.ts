@@ -16,10 +16,5 @@ export const profileDetailsForm: Array<
     type: "email",
     required: true,
   },
-  {
-    name: "password",
-    label: "Enter Passwprd",
-    type: "text",
-    required: true,
-  },
+
 ];
