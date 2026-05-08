@@ -1,6 +1,6 @@
-export type singupForm = {
-    fullname:string;
-    email:string;
-    password:string;
-    image:File | null;
-}
+export type signupForm = {
+  fullname: string;
+  email: string;
+  password: string;
+  image: File | null;
+};

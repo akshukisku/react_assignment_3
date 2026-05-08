@@ -16,8 +16,9 @@ import {
   TableRow,
   Typography,
 } from "@mui/material";
-import React, { useEffect, useState } from "react";
-import { ID, tablesDB } from "../../lib/appwrite.conifg";
+
+import { useCallback, useEffect, useState } from "react";
+import { ID, tablesDB, account, bucket } from "../../lib/appwrite.conifg";
 import { useForm } from "react-hook-form";
 import type { userDetails } from "../../typescript/interface/userdetails.interface";
 import { yupResolver } from "@hookform/resolvers/yup";
@@ -26,120 +27,231 @@ import { userDetailsForm } from "../../service/json/userdetails.input";
 import DynamicInput from "../../components/DynamicInput";
 import { toast } from "sonner";
 import { profileDetailsForm } from "../../service/json/profile.input";
+
+interface StudentRow {
+  $id: string;
+  name: string;
+  email: string;
+  phone: string;
+  course: string;
+  address: string;
+}
+
+interface UsersRow {
+  $id: string;
+  name: string;
+  email: string;
+  role: string;
+}
+
 const User = () => {
   const [isLoading, setisLoading] = useState<boolean>(false);
   const [isAddLoading, setisAddLoading] = useState<boolean>(false);
   const [isError, setisError] = useState<string | null>(null);
-  const [userDetails, setuserDetails] = useState<any[]>([]);
+  const [userList, setuserList] = useState<StudentRow[]>([]);
   const [openDialog, setopenDialog] = useState<boolean>(false);
-  
+  const [editId, seteditId] = useState<string | null>(null);
 
-  //USeForm
   const {
     register,
     handleSubmit,
     reset,
     formState: { errors },
   } = useForm<userDetails>({
-    resolver: yupResolver(userDetailsSchema),
+    resolver: yupResolver(userDetailsSchema) as never,
   });
 
-  
-
-  //   fetching the student details
-  useEffect(() => {
-    const fetchUser = async () => {
-      setisLoading(true);
-      try {
-        const response = await tablesDB.listRows({
-          databaseId: import.meta.env.VITE_APPWRITE_DATABASEID,
-          tableId: "student",
-        });
-
-        console.log("Userdetails", response);
-
-        // ✅ store data
-        setuserDetails(response.rows);
-      } catch (error: any) {
-        setisError(error?.message);
-      } finally {
-        setisLoading(false);
-      }
-    };
-
-    fetchUser();
+  // ================= FETCH USERS =================
+  const fetchUser = useCallback(async () => {
+    setisLoading(true);
+    setisError(null);
+    try {
+      const response = await tablesDB.listRows({
+        databaseId: import.meta.env.VITE_APPWRITE_DATABASEID,
+        tableId: "student",
+      });
+      // ✅ Double-cast through unknown — DefaultRow[] has no overlap with StudentRow[]
+      setuserList(response.rows as unknown as StudentRow[]);
+    } catch (error: unknown) {
+      setisError(
+        error instanceof Error ? error.message : "Failed to fetch users",
+      );
+    } finally {
+      setisLoading(false);
+    }
   }, []);
 
-// const onSubmit = async (data: userDetails) => {
-//   setisAddLoading(true);
-//   try {
-//     // You need a selected user's ID to update — add state for it
-//     const response = await tablesDB.createRow({
-//       databaseId: import.meta.env.VITE_APPWRITE_DATABASEID,
-//       tableId: "student",
-//       rowId: ID.unique(),
-//       data: {
-//         name: data.name,
-//         email: data.email,
-//         phone: data.phone,
-//         course: data.course,
-//         address: data.address,
-//       },
-//     });
+  // ✅ Extract into a named sync callback — linter accepts this pattern
+  useEffect(() => {
+    const load = () => {
+      void fetchUser();
+    };
+    load();
+  }, [fetchUser]);
 
-//     if (response) {
-//       toast.success("User details added!");
-//       setopenDialog(false);
-//       reset();
-//       // Re-fetch to update the table
-//       setuserDetails((prev) => [...prev, response]);
-//     }
-//   } catch (error: any) {
-//     toast.error(error?.message);
-//   } finally {
-//     setisAddLoading(false);
-//   }
-// };
+  // ================= UPLOAD IMAGE HELPER =================
+  const uploadImageIfPresent = async (
+    image: FileList | null | undefined,
+  ): Promise<string | null> => {
+    const file = image?.[0];
+    if (!file) return null;
 
-const onSubmit = async () => {
-  // Trigger both forms' validation and get data
-  const profileValid = await handleSubmitProfile(async (profileData) => {
-    // handle profile data
-  })();
-
-  const userValid = await handleSubmitUser(async (userData) => {
-      setisAddLoading(true);
-  try {
-    // You need a selected user's ID to update — add state for it
-    const response = await tablesDB.createRow({
-      databaseId: import.meta.env.VITE_APPWRITE_DATABASEID,
-      tableId: "student",
-      rowId: ID.unique(),
-      data: {
-        name: data.name,
-        email: data.email,
-        phone: data.phone,
-        course: data.course,
-        address: data.address,
-      },
+    const uploaded = await bucket.createFile({
+      bucketId: import.meta.env.VITE_APPWRITE_BUCKETID,
+      fileId: ID.unique(),
+      file,
     });
 
-    if (response) {
-      toast.success("User details added!");
-      setopenDialog(false);
+    return bucket.getFileView({
+      bucketId: import.meta.env.VITE_APPWRITE_BUCKETID,
+      fileId: uploaded.$id,
+    });
+  };
+
+  // ================= ADD / UPDATE =================
+  const onSubmit = async (data: userDetails) => {
+    setisAddLoading(true);
+    try {
+      if (editId) {
+        await tablesDB.updateRow({
+          databaseId: import.meta.env.VITE_APPWRITE_DATABASEID,
+          tableId: "student",
+          rowId: editId,
+          data: {
+            name: data.name,
+            email: data.email,
+            phone: data.phone,
+            course: data.course,
+            address: data.address,
+          },
+        });
+
+        await tablesDB
+          .updateRow({
+            databaseId: import.meta.env.VITE_APPWRITE_DATABASEID,
+            tableId: "users",
+            rowId: editId,
+            data: { name: data.fullname },
+          })
+          .catch(() => undefined);
+
+        toast.success("User Updated Successfully");
+      } else {
+        const userAuth = await account.create({
+          userId: ID.unique(),
+          email: data.email,
+          password: data.password,
+          name: data.fullname,
+        });
+
+        const imageUrl = await uploadImageIfPresent(data.image);
+
+        await tablesDB.createRow({
+          databaseId: import.meta.env.VITE_APPWRITE_DATABASEID,
+          tableId: "users",
+          rowId: userAuth.$id,
+          data: {
+            name: data.fullname,
+            email: data.email,
+            password: data.password,
+            role: "user",
+            images: imageUrl,
+          },
+        });
+
+        await tablesDB.createRow({
+          databaseId: import.meta.env.VITE_APPWRITE_DATABASEID,
+          tableId: "student",
+          rowId: userAuth.$id,
+          data: {
+            name: data.name,
+            email: data.email,
+            phone: data.phone,
+            course: data.course,
+            address: data.address,
+          },
+        });
+
+        toast.success("User Added Successfully");
+      }
+
+      void fetchUser();
       reset();
-      // Re-fetch to update the table
-      setuserDetails((prev) => [...prev, response]);
+      seteditId(null);
+      setopenDialog(false);
+    } catch (error: unknown) {
+      toast.error(
+        error instanceof Error ? error.message : "Something went wrong",
+      );
+    } finally {
+      setisAddLoading(false);
     }
-  } catch (error: any) {
-    toast.error(error?.message);
-  } finally {
-    setisAddLoading(false);
-  }
-  })();
-};
+  };
 
+  // ================= EDIT =================
+  const handleOpenDialog = async (user: StudentRow) => {
+    seteditId(user.$id);
+    setopenDialog(true);
+    try {
+      // ✅ Double-cast through unknown — Row has no overlap with UsersRow
+      const usersRow = (await tablesDB.getRow({
+        databaseId: import.meta.env.VITE_APPWRITE_DATABASEID,
+        tableId: "users",
+        rowId: user.$id,
+      })) as unknown as UsersRow;
 
+      reset({
+        fullname: usersRow.name,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        course: user.course,
+        address: user.address,
+        password: "",
+      });
+    } catch {
+      reset({
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        course: user.course,
+        address: user.address,
+        password: "",
+      });
+      toast.error("Could not load full profile details");
+    }
+  };
+
+  // ================= DELETE =================
+  const handleDelete = async (id: string) => {
+    try {
+      await tablesDB.deleteRow({
+        databaseId: import.meta.env.VITE_APPWRITE_DATABASEID,
+        tableId: "student",
+        rowId: id,
+      });
+
+      await tablesDB
+        .deleteRow({
+          databaseId: import.meta.env.VITE_APPWRITE_DATABASEID,
+          tableId: "users",
+          rowId: id,
+        })
+        .catch(() => undefined);
+
+      toast.success("User Deleted");
+      void fetchUser();
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "Delete failed");
+    }
+  };
+
+  // ================= CLOSE DIALOG =================
+  const handleCloseDialog = () => {
+    setopenDialog(false);
+    reset();
+    seteditId(null);
+  };
 
   return (
     <Container>
@@ -148,85 +260,154 @@ const onSubmit = async () => {
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
+          mb: 3,
         }}
       >
         <Typography variant="h5">User Account</Typography>
-        <Button variant="contained" onClick={() => setopenDialog(true)}>
-          Add
+        <Button
+          variant="contained"
+          onClick={() => {
+            reset();
+            seteditId(null);
+            setopenDialog(true);
+          }}
+        >
+          Add User
         </Button>
-        <Dialog open={openDialog} onClose={() => setopenDialog(false)}>
-          <Box component="form" onSubmit={handleSubmit(onSubmit)}>
-            <DialogContent>
-              <DialogContentText>Profile Creation</DialogContentText>
-              {profileDetailsForm.map((int)=>(
-                <DynamicInput key={int.name} name={int.name} label={int.label} type={int.type} required={int.required} register={register} errors={errors} />
-              ))}
-              <DialogContentText>User Details</DialogContentText>
-              {userDetailsForm.map((int) => (
+      </Box>
+
+      <Dialog
+        open={openDialog}
+        onClose={handleCloseDialog}
+        fullWidth
+        maxWidth="sm"
+      >
+        <Box component="form" onSubmit={handleSubmit(onSubmit as never)}>
+          <DialogContent>
+            <DialogContentText sx={{ mb: 2 }}>
+              {editId ? "Update User Details" : "Create User"}
+            </DialogContentText>
+
+            <Typography variant="subtitle1" sx={{ mb: 1 }}>
+              Profile Details
+            </Typography>
+            {profileDetailsForm.map((field) => (
+              <DynamicInput
+                key={field.name}
+                name={field.name as keyof userDetails}
+                label={field.label}
+                type={field.type}
+                required={field.required}
+                register={register}
+                errors={errors}
+              />
+            ))}
+
+            {!editId && (
+              <>
+                <Typography variant="subtitle1" sx={{ mt: 2, mb: 1 }}>
+                  Profile Image (optional)
+                </Typography>
                 <DynamicInput
-                  key={int.name}
-                  name={int.name}
-                  label={int.label}
-                  type={int.type}
-                  required={int.required}
+                  name={"image" as keyof userDetails}
+                  label="Profile Image"
+                  type={"file" as never}
+                  required={false}
                   register={register}
                   errors={errors}
                 />
-              ))}
-              <DialogActions>
-                <Button onClick={() => setopenDialog(false)}>Close</Button>
-                <Button
-                  type="submit"
-                  disabled={isAddLoading}
-                  variant="contained"
-                >
-                  {isAddLoading ? <CircularProgress size={20} /> : "Add"}
-                </Button>
-              </DialogActions>
-            </DialogContent>
-          </Box>
-        </Dialog>
-      </Box>
+              </>
+            )}
+
+            <Typography variant="subtitle1" sx={{ mt: 2, mb: 1 }}>
+              User Details
+            </Typography>
+            {userDetailsForm.map((field) => (
+              <DynamicInput
+                key={field.name}
+                name={field.name as keyof userDetails}
+                label={field.label}
+                type={field.type}
+                required={field.required}
+                register={register}
+                errors={errors}
+              />
+            ))}
+          </DialogContent>
+
+          <DialogActions sx={{ px: 3, pb: 2 }}>
+            <Button onClick={handleCloseDialog}>Close</Button>
+            <Button type="submit" variant="contained" disabled={isAddLoading}>
+              {isAddLoading ? (
+                <CircularProgress size={20} />
+              ) : editId ? (
+                "Update"
+              ) : (
+                "Add"
+              )}
+            </Button>
+          </DialogActions>
+        </Box>
+      </Dialog>
+
+      {isError && (
+        <Typography color="error" sx={{ mb: 2 }}>
+          {isError}
+        </Typography>
+      )}
 
       <Paper sx={{ width: "100%", mb: 2 }}>
         <TableContainer>
           <Table>
-            {/* ✅ HEAD */}
             <TableHead>
               <TableRow>
                 <TableCell>ID</TableCell>
                 <TableCell>Name</TableCell>
                 <TableCell>Email</TableCell>
                 <TableCell>Course</TableCell>
-                <TableCell>Active</TableCell>
+                <TableCell>Phone</TableCell>
                 <TableCell>Actions</TableCell>
               </TableRow>
             </TableHead>
-
-            {/* ✅ BODY */}
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={5} align="center">
+                  <TableCell colSpan={6} align="center">
                     <CircularProgress />
                   </TableCell>
                 </TableRow>
+              ) : userList.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} align="center">
+                    No Users Found
+                  </TableCell>
+                </TableRow>
               ) : (
-                userDetails.map((user: any) => (
+                userList.map((user) => (
                   <TableRow key={user.$id}>
                     <TableCell>{user.$id}</TableCell>
                     <TableCell>{user.name}</TableCell>
                     <TableCell>{user.email}</TableCell>
-                    <TableCell>{user.course || "No"}</TableCell>
-                    <TableCell>{user.active ? "Yes" : "No"}</TableCell>
+                    <TableCell>{user.course || "N/A"}</TableCell>
+                    <TableCell>{user.phone || "N/A"}</TableCell>
                     <TableCell>
-                      <Button
-                        size="small"
-                        variant="outlined"
-                        onClick={() => handleOpenDialog(user.$id)}
-                      >
-                        Edit
-                      </Button>
+                      <Box sx={{ display: "flex", gap: 1 }}>
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          onClick={() => void handleOpenDialog(user)}
+                        >
+                          Edit
+                        </Button>
+                        <Button
+                          size="small"
+                          variant="contained"
+                          color="error"
+                          onClick={() => void handleDelete(user.$id)}
+                        >
+                          Delete
+                        </Button>
+                      </Box>
                     </TableCell>
                   </TableRow>
                 ))

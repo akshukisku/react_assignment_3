@@ -9,6 +9,8 @@ import UserDashboard from "../pages/user/UserDashboard";
 import UserProtected from "../components/UserProtected";
 import AdminProtected from "../components/AdminProtected";
 import User from "../pages/admin/User";
+import FormOptimizer from "../pages/FormOptimizer";
+import Stopwatch from "../pages/Stopwatch";
 
 const Routes = createBrowserRouter([
   {
@@ -23,6 +25,14 @@ const Routes = createBrowserRouter([
         path: "/register",
         element: <Register />,
       },
+      {
+        path:"/form",
+        element:<FormOptimizer/>
+      },
+      {
+        path:"/stopwatch",
+        element:<Stopwatch/>
+      }
     ],
   },
   {

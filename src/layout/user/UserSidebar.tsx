@@ -91,9 +91,9 @@ const UserSidebar = () => {
 
          <Stack
       direction="row"
-      justifyContent="center"
-      alignItems="center"
-      sx={{ mt: 2 }}
+     
+      sx={{ mt: 2, justifyContent:"center",
+      alignItems:"center" }}
     >
       <Button
         variant="contained"

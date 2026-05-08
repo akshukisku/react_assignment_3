@@ -6,7 +6,7 @@ export const userDetailsForm: Array<
   Omit<DynamicInputProps<userDetails>, "register" | "errors">
 > = [
   {
-    name: "name",
+    name: "fullname",
     label: "Enter Name",
     type: "text",
     required: true,

@@ -13,17 +13,22 @@ import { forceLogout } from "../../service/helper/global.helper";
 import { useNavigate } from "react-router-dom";
 import Cookies from "js-cookie";
 
+interface MenuItem {
+  text: string;
+  icon: React.ReactNode;
+  path?: string; // optional — items like Settings may not have one yet
+}
+
 const Sidebar = () => {
   const navigate = useNavigate();
 
-  // ✅ Get admin data from cookies
   const userCookie = Cookies.get("user");
-  const admin = userCookie ? JSON.parse(userCookie) : null;
+  const admin = userCookie ? (JSON.parse(userCookie) as { name: string; role: string }) : null;
 
-  const menuItems = [
+  const menuItems: MenuItem[] = [
     { text: "Home", icon: <Home size={20} />, path: "/admin/dashboard" },
     { text: "User", icon: <Users size={20} />, path: "/admin/user" },
-    { text: "Settings", icon: <Settings size={20} /> },
+    { text: "Settings", icon: <Settings size={20} /> }, // no path yet
   ];
 
   return (
@@ -42,14 +47,7 @@ const Sidebar = () => {
       {/* Top Section */}
       <Box>
         {/* Logo */}
-        <Box
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            gap: 1.5,
-            mb: 5,
-          }}
-        >
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 5 }}>
           <Box
             sx={{
               width: 42,
@@ -67,23 +65,10 @@ const Sidebar = () => {
           </Box>
 
           <Box>
-            <Typography
-              sx={{
-                fontWeight: 800,
-                color: "#005B55",
-                fontSize: "1.4rem",
-              }}
-            >
+            <Typography sx={{ fontWeight: 800, color: "#005B55", fontSize: "1.4rem" }}>
               ADMIN
             </Typography>
-
-            <Typography
-              sx={{
-                fontSize: "0.7rem",
-                color: "#6B7280",
-                letterSpacing: 1,
-              }}
-            >
+            <Typography sx={{ fontSize: "0.7rem", color: "#6B7280", letterSpacing: 1 }}>
               DASHBOARD
             </Typography>
           </Box>
@@ -94,22 +79,19 @@ const Sidebar = () => {
           {menuItems.map((item) => (
             <ListItemButton
               key={item.text}
-              onClick={() => navigate(item.path)}
+              // ✅ Only navigate when a path is defined
+              onClick={() => item.path && navigate(item.path)}
               sx={{
                 borderRadius: 3,
                 py: 1.2,
                 px: 2,
                 color: "#8A8FA8",
-
-                "&:hover": {
-                  bgcolor: "#EEF2F7",
-                },
+                "&:hover": { bgcolor: "#EEF2F7" },
               }}
             >
               <Box sx={{ display: "flex", alignItems: "center", mr: 2 }}>
                 {item.icon}
               </Box>
-
               <ListItemText primary={item.text} />
             </ListItemButton>
           ))}
@@ -118,7 +100,7 @@ const Sidebar = () => {
 
       {/* Bottom Section */}
       <Box>
-        {/* 👤 Admin Info */}
+        {/* Admin Info */}
         <Box
           sx={{
             display: "flex",
@@ -131,21 +113,20 @@ const Sidebar = () => {
           }}
         >
           <Avatar sx={{ bgcolor: "#00695C" }}>
-            {admin?.name?.charAt(0) || "A"}
+            {admin?.name?.charAt(0) ?? "A"}
           </Avatar>
 
           <Box>
             <Typography sx={{ fontWeight: 600, fontSize: "0.9rem" }}>
-              {admin?.name || "Admin"}
+              {admin?.name ?? "Admin"}
             </Typography>
-
             <Typography sx={{ fontSize: "0.75rem", color: "#6B7280" }}>
-              {admin?.role || "Administrator"}
+              {admin?.role ?? "Administrator"}
             </Typography>
           </Box>
         </Box>
 
-        {/* 🚪 Logout Button */}
+        {/* Logout Button */}
         <Button
           onClick={forceLogout}
           fullWidth
@@ -158,10 +139,7 @@ const Sidebar = () => {
             py: 1.2,
             color: "#EF4444",
             fontWeight: 600,
-
-            "&:hover": {
-              bgcolor: "#FEE2E2",
-            },
+            "&:hover": { bgcolor: "#FEE2E2" },
           }}
         >
           Logout

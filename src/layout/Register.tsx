@@ -10,67 +10,64 @@ import {
 } from "@mui/material";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import type { singupForm } from "../typescript/type/signup.type";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { signupSchema } from "../service/validation/signup.validation";
 import { account, bucket, ID, tablesDB } from "../lib/appwrite.conifg";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
+import type { signupForm } from "../typescript/type/signup.type";
 const Register = () => {
   const [preview, setPreview] = useState<string | null>(null);
-  const [isLoading,setLoading]=useState(false);
+  const [isLoading, setLoading] = useState(false);
 
   const navigate = useNavigate();
 
+const {
+  register,
+  handleSubmit,
+  setValue,
+  reset,
+  formState: { errors },
+} = useForm<signupForm>({
+  resolver: yupResolver(signupSchema) as never,
+  defaultValues: {
+    fullname: "",
+    email: "",
+    password: "",
+    image: null,
+  },
+});
 
-  const {
-    register,
-    handleSubmit,
-    reset,
-    formState: { errors },
-    setValue,
-  } = useForm<singupForm>({
-    resolver: yupResolver(signupSchema),
-    defaultValues: {
-      fullname: "",
-      email: "",
-      password: "",
-    },
-  });
-
-  const onSubmit = async (data: singupForm) => {
-      setLoading(true);
+  const onSubmit = async (data: signupForm) => {
+    setLoading(true);
     try {
-
-      
       // Account Creation for Auth Table
       const userAuth = await account.create({
         userId: ID.unique(),
         email: data.email,
         password: data.password,
-        name: data.fullname
-      })
-      console.log('userauth', userAuth);
-      let imageUrl:  string | null = null;
-      if(data.image){
-        console.log('comming image', data.image);
-        
+        name: data.fullname,
+      });
+      console.log("userauth", userAuth);
+      let imageUrl: string | null = null;
+      if (data.image) {
+        console.log("comming image", data.image);
+
         // Bucket Id For image storafe
         const uploadImage = await bucket.createFile({
           bucketId: import.meta.env.VITE_APPWRITE_BUCKETID,
           fileId: ID.unique(),
-          file: data.image
+          file: data.image,
         });
-        console.log('upload img', uploadImage);
-        
+        console.log("upload img", uploadImage);
+
         const viewImage = bucket.getFileView({
           bucketId: import.meta.env.VITE_APPWRITE_BUCKETID,
           fileId: uploadImage.$id,
         });
 
-        console.log('vew img', viewImage);
-        imageUrl= viewImage
-        
+        console.log("vew img", viewImage);
+        imageUrl = viewImage;
       }
 
       // Account Create for users table in database
@@ -82,36 +79,34 @@ const Register = () => {
           name: data.fullname,
           email: data.email,
           password: data.password,
-          role: 'user',
-          images: imageUrl
-        }
+          role: "user",
+          images: imageUrl,
+        },
       });
 
       const userAccount = await tablesDB.createRow({
-        databaseId:import.meta.env.VITE_APPWRITE_DATABASEID,
-        tableId:"student",
-        rowId:userAuth.$id,
-        data:{
-          name:data.fullname,
-          email:data.email,
-        }
-      })
+        databaseId: import.meta.env.VITE_APPWRITE_DATABASEID,
+        tableId: "student",
+        rowId: userAuth.$id,
+        data: {
+          name: data.fullname,
+          email: data.email,
+        },
+      });
 
-      console.log("student create Successfully",userAccount)
-      console.log('user rgister res', user);
-      if(user){
+      console.log("student create Successfully", userAccount);
+      console.log("user rgister res", user);
+      if (user) {
         toast.success("User Register Successfully!!");
         reset();
         setPreview(null);
         navigate("/login");
       }
-      
-    } catch (error:any) {
-      console.log('errosr', error);
-      toast.error(error?.message)
-    }
-    finally{
-      setLoading(false)
+    } catch (error: any) {
+      console.log("errosr", error);
+      toast.error(error?.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -189,44 +184,42 @@ const Register = () => {
             />
           </Stack>
           {/* upload img btn */}
-          <Stack sx={{display:"flex",alignItems:"center",gap:2,mt:2}}>
-               {preview && (
-            <Box
-              component="img"
-              src={preview}
-              alt="img"
-              sx={{ width: "150px", height: "150px", borderRadius: "7px" }}
-            />
-          )}
-                      <Button
-            variant="outlined"
-            onClick={() => document.getElementById("fileInput")?.click()}
-            // onClick={() => fileRef.current?.click()}
-          >
-            UPload Image
-          </Button>
-           
-          <Box
-            // ref={fileRef}
-            id="fileInput"
-            component="input"
-            type="file"
-            hidden
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (!file) return;
-              setValue("image", file);
+          <Stack sx={{ display: "flex", alignItems: "center", gap: 2, mt: 2 }}>
+            {preview && (
+              <Box
+                component="img"
+                src={preview}
+                alt="img"
+                sx={{ width: "150px", height: "150px", borderRadius: "7px" }}
+              />
+            )}
+            <Button
+              variant="outlined"
+              onClick={() => document.getElementById("fileInput")?.click()}
+              // onClick={() => fileRef.current?.click()}
+            >
+              UPload Image
+            </Button>
 
-              const imgUrl = URL.createObjectURL(file);
-              setPreview(imgUrl);
-            }}
-          >
-            
-          </Box>
+            <Box
+              // ref={fileRef}
+              id="fileInput"
+              component="input"
+              type="file"
+              hidden
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                setValue("image", file);
+
+                const imgUrl = URL.createObjectURL(file);
+                setPreview(imgUrl);
+              }}
+            ></Box>
           </Stack>
 
           {/* img preview */}
-      
+
           <Button
             type="submit"
             fullWidth
@@ -240,7 +233,7 @@ const Register = () => {
               fontWeight: "bold",
             }}
           >
-            {isLoading ? <CircularProgress/> :"Get Started"}
+            {isLoading ? <CircularProgress /> : "Get Started"}
           </Button>
         </Box>
 

@@ -5,7 +5,6 @@ import {
   Button,
   Typography,
   Paper,
-  Divider,
   Stack,
   CircularProgress,
 } from "@mui/material";
@@ -69,7 +68,7 @@ const Login = () => {
       }
     } catch (error: any) {
       setisError(error?.message);
-      toast.error(error?.message)
+      toast.error(error?.message);
     } finally {
       setisLoading(false);
     }
@@ -144,6 +143,16 @@ const Login = () => {
               helperText={errors?.password?.message}
             />
           </Stack>
+
+          {isError && (
+            <Typography
+              variant="body2"
+              color="error"
+              sx={{ mt: 1, textAlign: "left" }}
+            >
+              {isError}
+            </Typography>
+          )}
 
           {/* Forgot Password */}
           <Typography
