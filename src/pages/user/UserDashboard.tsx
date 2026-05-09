@@ -1,11 +1,11 @@
-import  { useState } from 'react'
+// import  { useState } from 'react'
 import Cookies from "js-cookie";
 import { Box, Typography } from '@mui/material';
 const UserDashboard = () => {
 
    const userCookie = Cookies.get("user");
 
-   const [openDialog,setopenDialog]=useState<boolean>(false);
+  //  const [openDialog,setopenDialog]=useState<boolean>(false);
 
   // Convert string to object
   const user = userCookie
